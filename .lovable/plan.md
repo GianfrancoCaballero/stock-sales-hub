@@ -1,95 +1,112 @@
 
 
-## Dashboard de Gestión de Inventario, Clientes y Reportes
+## Plan: Importación de Productos desde Excel/CSV
 
-### Visión General
-Crearemos un dashboard moderno y minimalista para tu tienda minorista, con autenticación para tu equipo pequeño y roles básicos (admin/vendedor). El sistema te permitirá gestionar inventario, clientes y ver estadísticas clave de tu negocio.
+### Resumen del Archivo Analizado
 
----
+Tu archivo **Control_Stock_MiniLego.xlsx** contiene una hoja con 44 productos de figuras de anime (Jujutsu Kaisen, Chainsaw Man) con las siguientes columnas:
 
-### Fase 1: Autenticación y Configuración Base
-
-**Sistema de usuarios con roles**
-- Página de login/registro con email y contraseña
-- Dos roles: **Administrador** (acceso completo) y **Vendedor** (acceso limitado)
-- Los admins pueden invitar nuevos usuarios al sistema
-
-**Layout del Dashboard**
-- Sidebar colapsable con navegación clara
-- Header con información del usuario y botón de cerrar sesión
-- Diseño responsivo para uso en computadora y tablet
+| Columna del Excel | Campo en Base de Datos |
+|-------------------|----------------------|
+| Codigo | sku |
+| Nombre del personaje | name |
+| Anime de origen | category (se creará si no existe) |
+| Cantidad en stock | stock_quantity |
+| Precio de venta | sale_price |
+| Proveedor | description (como nota adicional) |
+| Estado | Se calculará automáticamente por stock |
 
 ---
 
-### Fase 2: Gestión de Inventario (Productos)
+### Funcionalidad a Implementar
 
-**Catálogo de productos**
-- Lista de productos con búsqueda y filtros
-- Vista en tabla con: nombre, SKU, categoría, precio, stock actual
-- Indicadores visuales de stock bajo (alerta cuando queda poco)
+#### 1. Botón de Importar en la Página de Productos
+- Agregar un botón "Importar Excel/CSV" junto al botón "Nuevo Producto"
+- Solo visible para administradores
+- Icono de Upload para identificarlo fácilmente
 
-**Gestión de productos**
-- Crear, editar y eliminar productos
-- Campos: nombre, descripción, SKU, categoría, precio de compra, precio de venta, stock mínimo
-- Historial de movimientos de inventario (entradas y salidas)
+#### 2. Diálogo de Importación
+Un modal que permita:
+- Subir archivos .xlsx, .xls o .csv
+- Vista previa de los datos detectados en una tabla
+- Resumen: cantidad de productos a importar, nuevas categorías a crear
+- Botones para confirmar o cancelar la importación
 
-**Importación de datos**
-- Funcionalidad para importar productos desde archivo CSV/Excel
-- Plantilla descargable para facilitar el formato correcto
+#### 3. Procesamiento del Archivo
+- Instalar librería **xlsx** para leer archivos Excel
+- Detectar automáticamente las columnas del archivo
+- Mapear las columnas del Excel a los campos de la base de datos
+- Crear categorías automáticamente si no existen (ej: "Jujutsu Kaisen", "Chainsaw Man")
 
----
-
-### Fase 3: Gestión de Clientes
-
-**Directorio de clientes**
-- Lista de clientes con búsqueda por nombre, email o teléfono
-- Vista de tabla con datos de contacto principales
-
-**Perfil de cliente**
-- Información de contacto (nombre, email, teléfono, dirección)
-- Notas adicionales sobre el cliente
-
-**Importación de clientes**
-- Importar clientes existentes desde CSV/Excel
+#### 4. Importación a la Base de Datos
+- Validar que cada fila tenga al menos el nombre del producto
+- Insertar productos en lotes para mayor eficiencia
+- Mostrar progreso de la importación
+- Resumen final: productos importados exitosamente y errores
 
 ---
 
-### Fase 4: Reportes y Estadísticas
+### Mapeo de Columnas Propuesto
 
-**Panel principal (Dashboard)**
-- Resumen visual con tarjetas: total de productos, productos con stock bajo, total de clientes
-- Gráfico de valor del inventario por categoría
-
-**Reportes de inventario**
-- Lista de productos con stock bajo o agotado
-- Valor total del inventario
-- Productos más y menos abundantes
-
----
-
-### Diseño Visual
-
-- **Estilo**: Moderno y minimalista con mucho espacio en blanco
-- **Colores**: Paleta neutra con acentos sutiles para indicadores de estado
-- **Tipografía**: Clara y legible
-- **Iconografía**: Iconos simples y consistentes
+```text
+Excel                    -->  Base de Datos
+--------------------------------------------------
+Codigo                   -->  sku
+Nombre del personaje     -->  name
+Anime de origen          -->  category_id (crear si no existe)
+Cantidad en stock        -->  stock_quantity
+Precio de venta          -->  sale_price
+Proveedor                -->  description (como referencia)
+Estado                   -->  (ignorado, se calcula por stock)
+```
 
 ---
 
-### Tecnología (Backend)
-Se utilizará **Lovable Cloud con Supabase** para:
-- Base de datos para productos, clientes, usuarios y movimientos
-- Autenticación segura
-- Políticas de seguridad por rol (RLS)
-- Almacenamiento para imágenes de productos (futuro)
+### Flujo de Usuario
+
+1. El admin hace clic en "Importar Excel/CSV"
+2. Selecciona el archivo desde su computadora
+3. El sistema muestra una vista previa con los primeros 5-10 productos
+4. El admin confirma la importación
+5. Los productos se agregan a la base de datos
+6. Se muestra un resumen con el resultado
 
 ---
 
-### Próximos pasos (después del MVP)
-Una vez tengamos el MVP funcionando, podremos agregar:
-- Registro de ventas y facturación
-- Historial de compras por cliente
-- Alertas automáticas de stock bajo
-- Exportación de reportes a PDF/Excel
-- Más métricas y gráficos avanzados
+### Detalles Tecnicos
+
+#### Dependencia Nueva
+- **xlsx** (SheetJS): Librería para leer archivos Excel en el navegador
+
+#### Componente Nuevo
+- `ImportProductsDialog.tsx`: Modal con toda la lógica de importación
+
+#### Modificaciones
+- `Products.tsx`: Agregar botón y diálogo de importación
+
+#### Lógica de Categorías
+- Buscar categoría existente por nombre exacto
+- Si no existe, crearla automáticamente
+- Asociar el producto con el ID de la categoría
+
+#### Manejo de Duplicados
+- Si un producto con el mismo SKU ya existe, se puede:
+  - Omitir (opción por defecto)
+  - Actualizar el existente (opción futura)
+
+---
+
+### Interfaz Visual
+
+El botón de importación tendrá el estilo `outline` para diferenciarlo del botón principal:
+
+```text
+[ + Nuevo Producto ]  [ ↑ Importar Excel ]
+```
+
+El diálogo mostrará:
+- Zona de arrastrar y soltar archivo
+- Tabla de vista previa
+- Barra de progreso durante la importación
+- Mensajes de éxito/error claros
 
