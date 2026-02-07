@@ -1,47 +1,48 @@
- import { useEffect, useState } from 'react';
- import { supabase } from '@/integrations/supabase/client';
- import { useAuth } from '@/hooks/useAuth';
- import { Button } from '@/components/ui/button';
- import { Input } from '@/components/ui/input';
- import { Label } from '@/components/ui/label';
- import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
- import {
-   Table,
-   TableBody,
-   TableCell,
-   TableHead,
-   TableHeader,
-   TableRow,
- } from '@/components/ui/table';
- import {
-   Dialog,
-   DialogContent,
-   DialogDescription,
-   DialogFooter,
-   DialogHeader,
-   DialogTitle,
-   DialogTrigger,
- } from '@/components/ui/dialog';
- import {
-   Select,
-   SelectContent,
-   SelectItem,
-   SelectTrigger,
-   SelectValue,
- } from '@/components/ui/select';
- import {
-   AlertDialog,
-   AlertDialogAction,
-   AlertDialogCancel,
-   AlertDialogContent,
-   AlertDialogDescription,
-   AlertDialogFooter,
-   AlertDialogHeader,
-   AlertDialogTitle,
- } from '@/components/ui/alert-dialog';
- import { Badge } from '@/components/ui/badge';
- import { useToast } from '@/hooks/use-toast';
- import { Plus, Search, Pencil, Trash2, AlertTriangle, Loader2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Badge } from '@/components/ui/badge';
+import { useToast } from '@/hooks/use-toast';
+import { Plus, Search, Pencil, Trash2, AlertTriangle, Loader2 } from 'lucide-react';
+import ImportProductsDialog from '@/components/products/ImportProductsDialog';
  
  interface Product {
    id: string;
@@ -225,14 +226,19 @@
            <p className="text-muted-foreground">Gestiona tu inventario de productos</p>
          </div>
          
-         {isAdmin && (
-           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-             <DialogTrigger asChild>
-               <Button onClick={() => handleOpenDialog()}>
-                 <Plus className="mr-2 h-4 w-4" />
-                 Nuevo Producto
-               </Button>
-             </DialogTrigger>
+          {isAdmin && (
+            <div className="flex items-center gap-2">
+              <ImportProductsDialog 
+                onImportComplete={fetchData} 
+                existingCategories={categories} 
+              />
+              <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button onClick={() => handleOpenDialog()}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Nuevo Producto
+                  </Button>
+                </DialogTrigger>
              <DialogContent className="sm:max-w-[500px]">
                <DialogHeader>
                  <DialogTitle>
@@ -348,13 +354,14 @@
                    {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                    {selectedProduct ? 'Guardar Cambios' : 'Crear Producto'}
                  </Button>
-               </DialogFooter>
-             </DialogContent>
-           </Dialog>
-         )}
-       </div>
- 
-       <Card>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+            </div>
+          )}
+        </div>
+
+        <Card>
          <CardHeader>
            <div className="flex items-center gap-4">
              <div className="relative flex-1 max-w-sm">
