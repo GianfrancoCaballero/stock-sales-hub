@@ -11,33 +11,36 @@
    DropdownMenuSeparator,
    DropdownMenuTrigger,
  } from '@/components/ui/dropdown-menu';
- import {
-   Package,
-   Users,
-   LayoutDashboard,
-   Settings,
-   LogOut,
-   Menu,
-   X,
-   ChevronLeft,
-   ChevronRight,
-   ShieldCheck,
- } from 'lucide-react';
- import { cn } from '@/lib/utils';
- 
- interface NavItem {
-   icon: React.ElementType;
-   label: string;
-   href: string;
-   adminOnly?: boolean;
- }
- 
- const navItems: NavItem[] = [
-   { icon: LayoutDashboard, label: 'Dashboard', href: '/' },
-   { icon: Package, label: 'Productos', href: '/productos' },
-   { icon: Users, label: 'Clientes', href: '/clientes' },
-   { icon: Settings, label: 'Configuración', href: '/configuracion', adminOnly: true },
- ];
+import {
+  Package,
+  Users,
+  LayoutDashboard,
+  LogOut,
+  Menu,
+  X,
+  ChevronLeft,
+  ChevronRight,
+  ShieldCheck,
+  ShoppingCart,
+  Tags,
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+interface NavItem {
+  icon: React.ElementType;
+  label: string;
+  href: string;
+  adminOnly?: boolean;
+}
+
+const navItems: NavItem[] = [
+  { icon: LayoutDashboard, label: 'Dashboard', href: '/' },
+  { icon: Package, label: 'Productos', href: '/productos' },
+  { icon: Users, label: 'Clientes', href: '/clientes' },
+  { icon: ShoppingCart, label: 'Ventas', href: '/ventas' },
+  { icon: Tags, label: 'Categorías', href: '/categorias', adminOnly: true },
+  { icon: Users, label: 'Usuarios', href: '/usuarios', adminOnly: true },
+];
  
  interface DashboardLayoutProps {
    children: ReactNode;

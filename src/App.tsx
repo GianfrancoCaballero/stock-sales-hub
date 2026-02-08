@@ -10,7 +10,9 @@ import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Products from "./pages/Products";
 import Customers from "./pages/Customers";
-import Settings from "./pages/Settings";
+import Sales from "./pages/Sales";
+import Categories from "./pages/Categories";
+import Users from "./pages/Users";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -63,11 +65,31 @@ const App = () => (
               }
             />
             <Route
-              path="/configuracion"
+              path="/ventas"
+              element={
+                <ProtectedRoute>
+                  <DashboardLayout>
+                    <Sales />
+                  </DashboardLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/categorias"
               element={
                 <ProtectedRoute requireAdmin>
                   <DashboardLayout>
-                    <Settings />
+                    <Categories />
+                  </DashboardLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/usuarios"
+              element={
+                <ProtectedRoute requireAdmin>
+                  <DashboardLayout>
+                    <Users />
                   </DashboardLayout>
                 </ProtectedRoute>
               }
