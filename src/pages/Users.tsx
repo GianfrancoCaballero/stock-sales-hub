@@ -3,6 +3,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Table,
   TableBody,
@@ -11,9 +13,27 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, ShieldCheck, User, Users as UsersIcon } from 'lucide-react';
+import { Loader2, ShieldCheck, User, Users as UsersIcon, Pencil, Trash2 } from 'lucide-react';
 
 interface UserProfile {
   id: string;
@@ -27,6 +47,12 @@ export default function Users() {
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [updatingUserId, setUpdatingUserId] = useState<string | null>(null);
+  const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editEmail, setEditEmail] = useState('');
+  const [editLoading, setEditLoading] = useState(false);
+  const [deletingUser, setDeletingUser] = useState<UserProfile | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
   
   const { isAdmin, user: currentUser } = useAuth();
   const { toast } = useToast();
@@ -69,16 +95,61 @@ export default function Users() {
     setUpdatingUserId(null);
 
     if (error) {
-      toast({
-        title: 'Error',
-        description: error.message,
-        variant: 'destructive',
-      });
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } else {
       toast({
         title: 'Éxito',
         description: `Rol actualizado a ${newRole === 'admin' ? 'Administrador' : 'Vendedor'}`,
       });
+      fetchUsers();
+    }
+  };
+
+  const handleEditUser = (user: UserProfile) => {
+    setEditingUser(user);
+    setEditName(user.full_name);
+    setEditEmail(user.email || '');
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingUser || !editName.trim()) return;
+    setEditLoading(true);
+
+    const { error } = await supabase
+      .from('profiles')
+      .update({ full_name: editName.trim(), email: editEmail.trim() || null })
+      .eq('user_id', editingUser.user_id);
+
+    setEditLoading(false);
+
+    if (error) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } else {
+      toast({ title: 'Éxito', description: 'Perfil actualizado correctamente' });
+      setEditingUser(null);
+      fetchUsers();
+    }
+  };
+
+  const handleDeleteUser = async () => {
+    if (!deletingUser) return;
+    setDeleteLoading(true);
+
+    const { data, error } = await supabase.functions.invoke('delete-user', {
+      body: { user_id: deletingUser.user_id },
+    });
+
+    setDeleteLoading(false);
+
+    if (error || data?.error) {
+      toast({
+        title: 'Error',
+        description: data?.error || error?.message || 'No se pudo eliminar el usuario',
+        variant: 'destructive',
+      });
+    } else {
+      toast({ title: 'Éxito', description: 'Usuario eliminado correctamente' });
+      setDeletingUser(null);
       fetchUsers();
     }
   };
@@ -125,7 +196,7 @@ export default function Users() {
                   <TableHead>Usuario</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Rol</TableHead>
-                  <TableHead className="text-right">Acción</TableHead>
+                  <TableHead className="text-right">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -149,20 +220,38 @@ export default function Users() {
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleToggleRole(user)}
-                        disabled={updatingUserId === user.user_id || user.user_id === currentUser?.id}
-                      >
-                        {updatingUserId === user.user_id ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : user.user_id === currentUser?.id ? (
-                          'Tu cuenta'
-                        ) : (
-                          'Cambiar Rol'
-                        )}
-                      </Button>
+                      <div className="flex items-center justify-end gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleToggleRole(user)}
+                          disabled={updatingUserId === user.user_id || user.user_id === currentUser?.id}
+                        >
+                          {updatingUserId === user.user_id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : user.user_id === currentUser?.id ? (
+                            'Tu cuenta'
+                          ) : (
+                            'Cambiar Rol'
+                          )}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleEditUser(user)}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-destructive"
+                          onClick={() => setDeletingUser(user)}
+                          disabled={user.user_id === currentUser?.id}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -171,6 +260,65 @@ export default function Users() {
           )}
         </CardContent>
       </Card>
+
+      {/* Edit User Dialog */}
+      <Dialog open={!!editingUser} onOpenChange={(open) => !open && setEditingUser(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar Usuario</DialogTitle>
+            <DialogDescription>Modifica los datos del perfil del usuario</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-name">Nombre completo</Label>
+              <Input
+                id="edit-name"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-email">Email</Label>
+              <Input
+                id="edit-email"
+                type="email"
+                value={editEmail}
+                onChange={(e) => setEditEmail(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingUser(null)}>Cancelar</Button>
+            <Button onClick={handleSaveEdit} disabled={editLoading || !editName.trim()}>
+              {editLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Guardar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete User Alert */}
+      <AlertDialog open={!!deletingUser} onOpenChange={(open) => !open && setDeletingUser(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar usuario?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se eliminará permanentemente la cuenta de <strong>{deletingUser?.full_name}</strong>. Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteUser}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleteLoading}
+            >
+              {deleteLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -57,6 +57,12 @@ export interface SalesFilters {
   customerSearch?: string;
 }
 
+export interface SaleUpdateData {
+  customer_id?: string | null;
+  payment_method?: string;
+  notes?: string | null;
+}
+
 export function useProducts() {
   return useQuery({
     queryKey: ['products-for-sale'],
@@ -117,7 +123,6 @@ export function useSalesHistory(filters: SalesFilters) {
       
       if (error) throw error;
 
-      // Get user profiles for sellers
       const userIds = [...new Set((data || []).map(s => s.user_id))];
       const { data: profiles } = await supabase
         .from('profiles')
@@ -126,7 +131,6 @@ export function useSalesHistory(filters: SalesFilters) {
 
       const profileMap = new Map(profiles?.map(p => [p.user_id, p.full_name]) || []);
 
-      // Filter by customer name if search is provided
       let filteredData = (data || []).map(sale => ({
         ...sale,
         seller: { full_name: profileMap.get(sale.user_id) || 'Usuario' },
@@ -172,16 +176,13 @@ export function useCreateSale() {
 
   return useMutation({
     mutationFn: async (saleData: SaleFormData) => {
-      // Get current user
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('No estás autenticado');
 
-      // Validate cart
       if (saleData.items.length === 0) {
         throw new Error('El carrito está vacío');
       }
 
-      // Validate stock for each item
       for (const item of saleData.items) {
         const { data: product } = await supabase
           .from('products')
@@ -194,13 +195,11 @@ export function useCreateSale() {
         }
       }
 
-      // Calculate total
       const total = saleData.items.reduce((sum, item) => sum + item.subtotal, 0);
       if (total <= 0) {
         throw new Error('El total debe ser mayor a 0');
       }
 
-      // Insert sale
       const { data: sale, error: saleError } = await supabase
         .from('sales')
         .insert({
@@ -216,7 +215,6 @@ export function useCreateSale() {
 
       if (saleError) throw saleError;
 
-      // Insert sale items
       const saleItems = saleData.items.map(item => ({
         sale_id: sale.id,
         product_id: item.product_id,
@@ -231,9 +229,7 @@ export function useCreateSale() {
 
       if (itemsError) throw itemsError;
 
-      // Update stock and create inventory movements
       for (const item of saleData.items) {
-        // Get current stock and update
         const { data: currentProduct } = await supabase
           .from('products')
           .select('stock_quantity')
@@ -247,7 +243,6 @@ export function useCreateSale() {
             .eq('id', item.product_id);
         }
 
-        // Create inventory movement
         await supabase
           .from('inventory_movements')
           .insert({
@@ -280,17 +275,116 @@ export function useCreateSale() {
   });
 }
 
+export function useUpdateSale() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ saleId, data }: { saleId: string; data: SaleUpdateData }) => {
+      const { error } = await supabase
+        .from('sales')
+        .update(data)
+        .eq('id', saleId);
+
+      if (error) throw error;
+      return saleId;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['sales-history'] });
+      toast({
+        title: 'Venta actualizada',
+        description: 'Los datos de la venta se han actualizado correctamente',
+      });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    },
+  });
+}
+
+export function useDeleteSale() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (saleId: string) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('No estás autenticado');
+
+      // Get sale items to restore stock
+      const { data: saleItems } = await supabase
+        .from('sale_items')
+        .select('product_id, quantity')
+        .eq('sale_id', saleId);
+
+      // Get sale status
+      const { data: sale } = await supabase
+        .from('sales')
+        .select('status')
+        .eq('id', saleId)
+        .single();
+
+      // Restore stock if sale was completed
+      if (sale?.status === 'completada') {
+        for (const item of saleItems || []) {
+          const { data: currentProduct } = await supabase
+            .from('products')
+            .select('stock_quantity')
+            .eq('id', item.product_id)
+            .single();
+
+          if (currentProduct) {
+            await supabase
+              .from('products')
+              .update({ stock_quantity: currentProduct.stock_quantity + item.quantity })
+              .eq('id', item.product_id);
+          }
+
+          await supabase
+            .from('inventory_movements')
+            .insert({
+              product_id: item.product_id,
+              user_id: user.id,
+              movement_type: 'sale_return',
+              quantity: item.quantity,
+              notes: `Eliminación de venta #${saleId.slice(0, 8)}`,
+            });
+        }
+      }
+
+      // Delete sale (cascade deletes sale_items)
+      const { error } = await supabase
+        .from('sales')
+        .delete()
+        .eq('id', saleId);
+
+      if (error) throw error;
+      return saleId;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['products-for-sale'] });
+      queryClient.invalidateQueries({ queryKey: ['sales-history'] });
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+      toast({
+        title: 'Venta eliminada',
+        description: 'La venta y su stock han sido procesados correctamente',
+      });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    },
+  });
+}
+
 export function useCancelSale() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
   return useMutation({
     mutationFn: async (saleId: string) => {
-      // Get current user
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('No estás autenticado');
 
-      // Get sale items to restore stock
       const { data: saleItems, error: itemsError } = await supabase
         .from('sale_items')
         .select('product_id, quantity')
@@ -298,7 +392,6 @@ export function useCancelSale() {
 
       if (itemsError) throw itemsError;
 
-      // Update sale status
       const { error: updateError } = await supabase
         .from('sales')
         .update({ status: 'cancelada' })
@@ -306,9 +399,7 @@ export function useCancelSale() {
 
       if (updateError) throw updateError;
 
-      // Restore stock and create reverse movements
       for (const item of saleItems || []) {
-        // Get current stock
         const { data: currentProduct } = await supabase
           .from('products')
           .select('stock_quantity')
@@ -322,7 +413,6 @@ export function useCancelSale() {
             .eq('id', item.product_id);
         }
 
-        // Create reverse inventory movement
         await supabase
           .from('inventory_movements')
           .insert({
@@ -346,11 +436,7 @@ export function useCancelSale() {
       });
     },
     onError: (error: Error) => {
-      toast({
-        title: 'Error',
-        description: error.message,
-        variant: 'destructive',
-      });
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
     },
   });
 }
