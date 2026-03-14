@@ -63,6 +63,7 @@ interface Product {
   is_active: boolean;
   image_url: string | null;
   created_at: string;
+  updated_at?: string;
 }
 
 interface Category {
