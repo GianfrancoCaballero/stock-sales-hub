@@ -63,6 +63,7 @@ interface Product {
   is_active: boolean;
   image_url: string | null;
   created_at: string;
+  updated_at?: string;
 }
 
 interface Category {
@@ -223,7 +224,7 @@ export default function Products() {
       supabase.from('categories').select('*').order('name'),
     ]);
 
-    if (productsResult.data) setProducts(productsResult.data);
+    if (productsResult.data) setProducts(productsResult.data.map(p => ({ ...p, is_active: true, image_url: null })) as Product[]);
     if (categoriesResult.data) setCategories(categoriesResult.data);
     setLoading(false);
   };
