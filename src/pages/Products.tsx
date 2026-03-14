@@ -223,7 +223,7 @@ export default function Products() {
       supabase.from('categories').select('*').order('name'),
     ]);
 
-    if (productsResult.data) setProducts(productsResult.data);
+    if (productsResult.data) setProducts(productsResult.data as Product[]);
     if (categoriesResult.data) setCategories(categoriesResult.data);
     setLoading(false);
   };
